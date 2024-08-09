@@ -16,7 +16,7 @@ class ViewModel {
     
     
     /// 유저의 텍스트 입력
-    public let textInput: PublishRelay<String> = .init()
+    public let editingTextInput: PublishRelay<String> = .init()
     
     
     
@@ -25,23 +25,20 @@ class ViewModel {
     private(set) var inputValidation: Driver<Bool>?
     
     
-    /// 1. 수정 홀드합니다.
-    /// 2. accept된 값을 RenderObject로 방출합니다.
-    private let editingObject: BehaviorRelay<StateObject> = .init(value: .init())
+    /// 현재 State를 방출합니다.
+    private let statePublisher: PublishRelay<StateObject> = .init()
     
     
     /// 저장 상태를 홀드합니다.
-    private let stateObject = StateObject()
+    private var editingState: StateObject!
+    private var savedState: StateObject!
     
-    
-    
+
     
     init() {
         
-        
-        
         // Editing -> RenderObject
-        renderObject = editingObject
+        renderObject = statePublisher
             .map({ stateObject in
                 RenderObject.createRoFrom(stateObject: stateObject)
             })
@@ -50,20 +47,17 @@ class ViewModel {
         
         
         // UIState를 서정하는옵저버블과 인풋은 모두 검증과정을 거친다.
-        let userInput = textInput
-            .map({ [editingObject] userInputString in
-                
-                // editing value update
-                // 값을 업데이트 하지만 방출이 이뤄지지 않음(class특성)
-                editingObject.value.textInput = userInputString
+        let userInput = editingTextInput
+            .map({ [weak self] (userInputString: String) in
+
+                self?.editingState.textInput = userInputString
                 
                 return userInputString
             })
-            .asObservable()
         
         
         
-        let emittedByViewModel = editingObject.map({ $0.textInput })
+        let emittedByViewModel = statePublisher.map({ $0.textInput })
         
         inputValidation = Observable
             .merge(
@@ -79,6 +73,15 @@ class ViewModel {
         
     }
     
+    func setInitialState() {
+        // 초기 상태 설정
+        let initialState = getInitialState()
+        editingState = initialState
+        savedState = initialState
+        
+        // 초기상태 이벤트를 방출
+        statePublisher.accept(initialState)
+    }
     
     
     func userInputValidation(text: String) -> Bool {
@@ -87,15 +90,11 @@ class ViewModel {
     
     
     
-    func emitInitialState() {
+    func getInitialState() -> StateObject {
         
         let initialText: String = "Initial value"
         
-        // ⚠️ State와 editing 오브젝트의 크기가 커지면 값을 설정하기 힘들어짐 ⚠️
-        
-        editingObject.accept(.init(textInput: initialText))
-        
-        stateObject.textInput = initialText
+        return .init(textInput: initialText)
     }
     
     
@@ -103,9 +102,7 @@ class ViewModel {
     /// Editing -> State
     func saveData() {
         
-        // ⚠️ 두타입이 클래스임으로 할당이 안됨, 프로퍼티를 일일히 대입해야함 ⚠️
-        
-        stateObject.textInput = editingObject.value.textInput
+        savedState = editingState
     }
     
     
@@ -113,18 +110,15 @@ class ViewModel {
     /// State -> NewState -> Editing -> Rendering
     func fetchData() {
         
-        // ⚠️ 두타입이 클래스임으로 할당이 안됨, 프로퍼티를 일일히 대입하거나 인스턴스를 새로 생성해야함 ⚠️
-        
-        let savedText = stateObject.textInput
-        let newStateObject = StateObject(textInput: savedText)
+        editingState = savedState
         
         // 새로운 StateObject를 emit
-        editingObject.accept(newStateObject)
+        statePublisher.accept(editingState)
     }
 }
 
 // MARK: RenderObject
-class RenderObject {
+struct RenderObject {
     let text: String
     
     init(text: String) {
@@ -143,7 +137,7 @@ class RenderObject {
 }
 
 // MARK: StateObject
-class StateObject {
+struct StateObject {
     var textInput: String
     
     init(textInput: String = "") {

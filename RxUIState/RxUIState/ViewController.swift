@@ -85,7 +85,7 @@ class ViewController: UIViewController {
         textField
             .rx.text
             .compactMap { $0 }
-            .bind(to: viewModel.textInput)
+            .bind(to: viewModel.editingTextInput)
             .disposed(by: disposeBag)
         
         fetchButton
@@ -120,9 +120,6 @@ class ViewController: UIViewController {
                 textField.backgroundColor = isValid ?  validColor : inValidColor
             })
             .disposed(by: disposeBag)
-        
-        // 초기값 방출
-        viewModel.emitInitialState()
     }
 }
 
