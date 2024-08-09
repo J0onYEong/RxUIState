@@ -38,9 +38,6 @@ class ViewModel {
     
     init() {
         
-        // Input -> Output
-        
-        
         
         
         // Editing -> RenderObject
@@ -52,10 +49,20 @@ class ViewModel {
         
         
         
-        
-        
         // UIState를 서정하는옵저버블과 인풋은 모두 검증과정을 거친다.
-        let userInput = textInput.asObservable()
+        let userInput = textInput
+            .map({ [editingObject] userInputString in
+                
+                // editing value update
+                // 값을 업데이트 하지만 방출이 이뤄지지 않음(class특성)
+                editingObject.value.textInput = userInputString
+                
+                return userInputString
+            })
+            .asObservable()
+        
+        
+        
         let emittedByViewModel = editingObject.map({ $0.textInput })
         
         inputValidation = Observable
@@ -63,18 +70,10 @@ class ViewModel {
                 userInput,
                 emittedByViewModel
             )
-            .map { [weak self] userInputString in
+            .map { [weak self] targetString in
                 guard let self else { return false }
-                 
                 
-                
-                // editing value update
-                // 값을 업데이트 하지만 방출이 이뤄지지 않음(class특성)
-                editingObject.value.textInput = userInputString
-                
-                
-                
-                return userInputValidation(text: userInputString)
+                return userInputValidation(text: targetString)
             }
             .asDriver(onErrorJustReturn: false)
         
