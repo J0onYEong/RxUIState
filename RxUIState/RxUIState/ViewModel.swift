@@ -90,7 +90,7 @@ class ViewModel {
     
     
     
-    func getInitialState() -> StateObject {
+    private func getInitialState() -> StateObject {
         
         let initialText: String = "Initial value"
         

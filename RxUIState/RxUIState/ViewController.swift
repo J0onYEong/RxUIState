@@ -120,6 +120,8 @@ class ViewController: UIViewController {
                 textField.backgroundColor = isValid ?  validColor : inValidColor
             })
             .disposed(by: disposeBag)
+        
+        viewModel.setInitialState()
     }
 }
 
