@@ -6,6 +6,8 @@
 //
 
 import UIKit
+import RxCocoa
+import RxSwift
 
 class ViewController: UIViewController {
 
@@ -16,10 +18,13 @@ class ViewController: UIViewController {
         field.font = UIFont.systemFont(ofSize: 40)
         return field
     }()
+    let inValidColor: UIColor = .red.withAlphaComponent(0.3)
+    let validColor: UIColor = .green.withAlphaComponent(0.3)
+    
     // 🖥️ 저장한값 가져오기 버튼
     let fetchButton: UIButton = {
         let btn = UIButton()
-        btn.setTitle("저장한값 가져오기", for: .normal)
+        btn.setTitle("RollBack", for: .normal)
         btn.setTitleColor(.black, for: .normal)
         btn.backgroundColor = .blue.withAlphaComponent(0.3)
         return btn
@@ -27,15 +32,23 @@ class ViewController: UIViewController {
     // 🖥️ 값 저장하기 버튼
     let saveButton: UIButton = {
         let btn = UIButton()
-        btn.setTitle("값 저장하기", for: .normal)
+        btn.setTitle("Save", for: .normal)
         btn.setTitleColor(.black, for: .normal)
         btn.backgroundColor = .green.withAlphaComponent(0.3)
         return btn
     }()
+    
+    let disposeBag: DisposeBag = .init()
 
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        view.backgroundColor = .white
+        
+        setLayout()
+    }
+    
+    func setLayout() {
         let stackView = UIStackView()
         stackView.axis = .vertical
         stackView.spacing = 5
@@ -65,10 +78,58 @@ class ViewController: UIViewController {
             stackView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
         ])
     }
+    
+    func bind(viewModel: ViewModel) {
+        
+        // Input
+        textField
+            .rx.text
+            .compactMap { $0 }
+            .bind(to: viewModel.textInput)
+            .disposed(by: disposeBag)
+        
+        fetchButton
+            .rx.tap
+            .subscribe(onNext: { [viewModel] _ in
+                viewModel.fetchData()
+            })
+            .disposed(by: disposeBag)
+        
+        saveButton
+            .rx.tap
+            .subscribe(onNext: { [viewModel] _ in
+                viewModel.saveData()
+            })
+            .disposed(by: disposeBag)
+        
+        // Output
+        viewModel
+            .renderObject
+            .map { rederObject in
+                
+                rederObject.text
+            }
+            .drive(textField.rx.text)
+            .disposed(by: disposeBag)
+        
+        viewModel
+            .inputValidation?
+            .drive(onNext: { [weak self] isValid in
+                
+                guard let self else { return }
+                textField.backgroundColor = isValid ?  validColor : inValidColor
+            })
+            .disposed(by: disposeBag)
+        
+        // 초기값 방출
+        viewModel.emitInitialState()
+    }
 }
 
 @available(iOS 17.0, *)
 #Preview("Preview", traits: .defaultLayout) {
-    
-    ViewController()
+    let view = ViewController()
+    let viewModel = ViewModel()
+    view.bind(viewModel: viewModel)
+    return view
 }
